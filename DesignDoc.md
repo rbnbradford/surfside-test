@@ -18,7 +18,7 @@ using Fastify: good balance of adoption, performance and developer friendly api
 
 using zod: developer friendly expressive validation library
 
-using pm2: industry standard approach to running and managing multiple processes providing monitoring and automatic restart, gains extra performance from utilisng multiple cores
+using pm2: industry standard approach to running and managing multiple processes providing monitoring and automatic restart, gains extra performance from using multiple cores
 
 the api service does not perform deduplication to ensure high throughput
 
@@ -42,7 +42,7 @@ Essentially FOSS version of redis
 
 Extremely performant for low latency reads and writes allowing deduplication across batches of previously seen impressions.
 
-Built in expiry on keys allows for previously seen impressions to be valid again after 24 hour window.
+Built-in expiry on keys can allow for previously seen impressions to be valid again after 24 hour window.
 
 Uses AOF for resilience across restarts.
 
@@ -70,5 +70,5 @@ The novel events are then stored in valkey.
 
 - Views per adId could be aggregated into minute blocks, allowing more performant but less accurate queries
 - Query endpoint should be moved to another service so that it doesn't impact event ingestion
-- When deployed api should be horizontally scaled behind a loadbalancer according to throughput needs (pm2 can still be used if the container has multiple cores internally)
-- When deployed worker should be horizontally scaled as above
+- When deployed, api should be horizontally scaled behind a loadbalancer according to throughput needs (pm2 can still be used if the container has multiple cores internally)
+- When deployed, worker should be horizontally scaled as above

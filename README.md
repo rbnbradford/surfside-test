@@ -37,12 +37,14 @@ load tests assume a plugged-in laptop with at least eight core cpu (pm2 is used 
 
 ### To Run Integration Tests
 
-The system has essentially 0 business logic and to achieve durability and performance relies on infrastructure\
-Therefore, only infrastructure tests have been included, each tests the boundaries of the api and the worker\
-api is tested from http call through to validation of events produced to kafka\
-worker is tested from kafka events through to validation of clickhouse data
+The system has essentially no business logic and to achieve durability and performance relies heavily on infrastructure for its functionality;
+therefore, only infrastructure tests have been included, each tests the boundaries of the api and the worker.
+
+Api is tested from http call through to validation of events produced to kafka.
+
+Worker is tested from kafka events through to validation of clickhouse data
 
 - assumed using node v25.4.0, if you have nvm `nvm insall` and `nvm use`
 - `npm install`
-- tests will start containers they rely on, make sure compose is down to avoid conflights `make down`
+- tests will start containers they rely on, make sure compose is down to avoid conflicts `make down`
 - `npm run test:integration`
