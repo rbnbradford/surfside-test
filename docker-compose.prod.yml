@@ -1,0 +1,19 @@
+name: 'surfside-test'
+
+
+services:
+  api:
+    build:
+      target: prod
+    environment:
+      NODE_ENV: 'production'
+      APP_ENV: 'production'
+    volumes: []
+
+  worker:
+    build:
+      target: prod
+    environment:
+      NODE_ENV: 'production'
+      APP_ENV: 'production'
+    volumes: []

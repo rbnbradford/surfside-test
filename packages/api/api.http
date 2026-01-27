@@ -1,0 +1,14 @@
+### Store impression event
+POST http://localhost:3000/event
+Content-Type: application/json
+
+{
+  "id": "00000000-0000-4000-8000-000000000009",
+  "ts": 1710000000,
+  "userId": "00000000-0000-4000-8000-000000000002",
+  "adId": "00000000-0000-4000-8000-000000000003"
+}
+
+### Get impression stats by ad id
+
+GET http://localhost:3000/stats?timeWindowMinutes=5

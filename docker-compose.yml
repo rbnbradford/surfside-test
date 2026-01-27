@@ -1,0 +1,181 @@
+name: 'surfside-test'
+
+
+services:
+  api:
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+        reservations:
+          cpus: '4'
+    build:
+      context: .
+      dockerfile: packages/api/Dockerfile
+      target: dev
+    env_file: ./packages/api/env/.env
+    environment:
+      PORT: '3000'
+    volumes:
+      - ./packages/api/src:/app/packages/api/src:ro
+      - ./packages/lib/src:/app/packages/lib/src:ro
+    ports:
+      - '3000:3000'
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "0.0.0.0:3000/healthz" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    depends_on:
+      valkey:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+      clickhouse:
+        condition: service_healthy
+
+  valkey:
+    image: valkey/valkey:latest
+    ports:
+      - '6379:6379'
+    environment:
+      VALKEY_EXTRA_FLAGS: '--appendonly yes --appendfsync everysec --maxmemory 1gb --maxmemory-policy allkeys-lru --save ""'
+    volumes:
+      - valkey_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "valkey-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  kafka:
+    image: apache/kafka:3.9.0
+    ports:
+      - '9092:9092'
+      - '29092:29092'
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,PLAINTEXT_HOST://0.0.0.0:29092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_LOG_RETENTION_MS: 86400000  # 24 hours
+      KAFKA_LOG_RETENTION_BYTES: -1
+    healthcheck:
+      test: [ 'CMD-SHELL', '/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 && /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:29092 || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    volumes:
+      - type: tmpfs
+        target: /var/lib/kafka/data
+
+  kafka-init:
+    image: apache/kafka:3.9.0
+    depends_on:
+      kafka:
+        condition: service_healthy
+    volumes:
+      - ./init/kafka-topics.sh:/init.sh:ro
+    entrypoint: [ '/bin/sh', '/init.sh' ]
+
+  kafka-lag-exporter:
+    image: seglo/kafka-lag-exporter:0.8.2
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./init/kafka-lag-exporter.conf:/opt/docker/conf/application.conf:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --spider -q http://localhost:8000/metrics || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+
+  kafka-lag-logger:
+    image: curlimages/curl:latest
+    depends_on:
+      kafka-lag-exporter:
+        condition: service_healthy
+    volumes:
+      - ./init/kafka-lag-logger.sh:/init.sh:ro
+    entrypoint: [ '/bin/sh', '/init.sh' ]
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - ./init/clickhouse-schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_logs:/var/log/clickhouse-server
+    environment:
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: password
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    healthcheck:
+      test: [ "CMD", "clickhouse-client", "--query", "SELECT 1" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    restart: unless-stopped
+
+  worker:
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+        reservations:
+          cpus: '4'
+    build:
+      context: .
+      dockerfile: packages/worker/Dockerfile
+      target: dev
+    env_file: ./packages/worker/env/.env
+    environment:
+      PORT: '3000'
+    volumes:
+      - ./packages/worker/src:/app/packages/worker/src:ro
+      - ./packages/lib/src:/app/packages/lib/src:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "ps aux | grep node | grep -v grep || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    depends_on:
+      valkey:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+      clickhouse:
+        condition: service_healthy
+
+
+volumes:
+  valkey_data:
+  clickhouse_data:
+  clickhouse_logs:
+
+networks:
+  default:
+    name: surfside-test
+    driver: bridge

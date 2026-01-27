@@ -1,0 +1,24 @@
+{
+  "name": "surfside-test",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "check": "npm run check --workspaces --if-present",
+    "check:fix": "npm run check:fix --workspaces --if-present",
+    "format": "npm run format --workspaces --if-present",
+    "build:lib": "npm run build -w @surfside/lib",
+    "build:api": "npm run build -w @surfside/api",
+    "build:worker": "npm run build -w @surfside/worker",
+    "build": "npm run build:lib && npm run build:api && npm run build:worker",
+    "dev:api": "npm run dev -w @surfside/api",
+    "dev:worker": "npm run dev -w @surfside/worker",
+    "test:integration": "npm run test:integration --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.3"
+  }
+}
