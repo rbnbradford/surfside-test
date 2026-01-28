@@ -1,8 +1,7 @@
-import { clearInterval } from 'node:timers';
 import { createClient } from '@clickhouse/client';
 import type { NodeClickHouseClient } from '@clickhouse/client/dist/client';
 import type { NodeClickHouseClientConfigOptions } from '@clickhouse/client/dist/config';
-import type { Impression } from '@surfside/lib';
+import { type Impression, IntervalPromise } from '@surfside/lib';
 import { Kafka, type KafkaConfig, logLevel, Partitioners, type Producer } from 'kafkajs';
 import { v4 as uuidV4 } from 'uuid';
 import { expect, vi } from 'vitest';
@@ -46,15 +45,12 @@ const buildTestContext = async () => {
   const admin = kafka.admin();
   await admin.connect();
   await admin.createTopics({ topics: [{ topic, numPartitions: 1, replicationFactor: 1 }] });
-  await new Promise<void>((res) => {
-    const interval = setInterval(async () => {
-      const topics = await admin.listTopics();
-      const hasTopic = topics.includes(topic);
-      if (!hasTopic) return;
-      clearInterval(interval);
-      res();
-    }, 100);
-  });
+
+  await IntervalPromise<void>(async (res) => {
+    const topics = await admin.listTopics();
+    if (topics.includes(topic)) res();
+  }, 100);
+
   await admin.disconnect();
 
   const producer = kafka.producer({
@@ -73,12 +69,10 @@ const buildTestContext = async () => {
 
   const clickhouseClient = createClient(clickhouseConfig);
 
-  await new Promise<void>((res) => {
-    setInterval(async () => {
-      const pingResult = await clickhouseClient.ping();
-      if (pingResult.success) res();
-    }, 100);
-  });
+  await IntervalPromise<void>(async (res) => {
+    const pingResult = await clickhouseClient.ping();
+    if (pingResult.success) res();
+  }, 100);
 
   await clickhouseClient.command({ query: `CREATE TABLE ${testId} AS impressions;` });
 
