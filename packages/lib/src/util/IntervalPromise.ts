@@ -13,5 +13,5 @@ export const IntervalPromise = <T>(handler: Handler<T>, delayMs: number): Promis
       clearInterval(interval);
       rej(reason);
     };
-    interval = setInterval(() => handler(resolve, reject), delayMs);
+    interval = setInterval(() => Promise.resolve(handler(resolve, reject)).catch(reject), delayMs);
   });
