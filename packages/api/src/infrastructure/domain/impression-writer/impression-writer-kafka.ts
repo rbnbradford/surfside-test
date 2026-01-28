@@ -9,23 +9,24 @@ type Params = {
 };
 
 export class ImpressionWriterKafka implements ImpressionWriter {
-  private readonly producer: Producer;
-  private readonly topic: string;
-
-  public constructor({ kafkaConfig, producerConfig, topic }: Params) {
-    const kafka = new Kafka(kafkaConfig);
-    const producer = kafka.producer(producerConfig);
-    this.producer = producer;
-    this.topic = topic;
-  }
+  private constructor(
+    private readonly producer: Producer,
+    private readonly topic: string,
+  ) {}
 
   async write(impression: Impression): Promise<void> {
-    await this.producer.connect();
     await this.producer.send({
       topic: this.topic,
       acks: 1,
       messages: [{ key: impression.id, value: JSON.stringify(impression) }],
     });
+  }
+
+  static async build({ kafkaConfig, producerConfig, topic }: Params): Promise<ImpressionWriterKafka> {
+    const kafka = new Kafka(kafkaConfig);
+    const producer = kafka.producer(producerConfig);
+    await producer.connect();
+    return new ImpressionWriterKafka(producer, topic);
   }
 
   async disconnect(): Promise<void> {

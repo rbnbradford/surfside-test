@@ -13,11 +13,11 @@ const config = AppConfig.build(env);
 
 const inMemoryImpressionRecord: Record<string, Impression[]> = {};
 
-const buildImpressionWriter = ({ config }: { config: AppConfig }) => {
+const buildImpressionWriter = async ({ config }: { config: AppConfig }) => {
   switch (config.impressionWriter.method) {
     case 'kafka': {
       const { clientId, brokers, topic } = config.impressionWriter;
-      return new ImpressionWriterKafka({
+      return await ImpressionWriterKafka.build({
         kafkaConfig: { clientId, brokers },
         producerConfig: {
           retry: { initialRetryTime: 20, retries: 10, maxRetryTime: 100 },
@@ -44,7 +44,7 @@ const buildImpressionQueryService = ({ config }: { config: AppConfig }) => {
 };
 
 const main = async () => {
-  const impressionWriter = buildImpressionWriter({ config });
+  const impressionWriter = await buildImpressionWriter({ config });
   const impressionQueryService = buildImpressionQueryService({ config });
   const { port, cors } = config.server;
   const server = new AppServer({ port, cors, impressionWriter, impressionQueryService });

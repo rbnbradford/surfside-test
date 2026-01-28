@@ -100,7 +100,7 @@ const buildTestContext = async () => {
 
   await clickhouseClient.command({ query: `CREATE TABLE ${testId} AS impressions;` });
 
-  const impressionWriter = new ImpressionWriterKafka({
+  const impressionWriter = await ImpressionWriterKafka.build({
     kafkaConfig,
     producerConfig: {
       retry: { initialRetryTime: 20, retries: 10, maxRetryTime: 100 },
